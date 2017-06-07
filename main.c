@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "merge.h"
+#include "verbose.h"
 
 void usage(void)
 {
@@ -41,7 +42,7 @@ void usage(void)
 	printf("Copyright (C) 2017 SURFnet bv\n");
 	printf("All rights reserved (see LICENSE for more information)\n\n");
 	printf("Usage:\n");
-	printf("\tldns-mergezone -f <from-zone> -t <to-zone> [-1] [-2] [-3] -o <out-zone>\n");
+	printf("\tldns-mergezone -f <from-zone> -t <to-zone> [-1] [-2] [-3] -o <out-zone> [-v]\n");
 	printf("\tldns-mergezone -h\n");
 	printf("\n");
 	printf("\t-f <from-zone> Zone signed with the \"from\" algorithm\n");
@@ -51,6 +52,7 @@ void usage(void)
 	printf("\t-3             Produce third output zone type (see README.md)\n");
 	printf("\t               (note: you must specify one of -1, -2, -3)\n");
 	printf("\t-o <out-zone>  Write output to <out-zone>\n");
+	printf("\t-v             Be verbose\n");
 	printf("\n");
 	printf("\t-h                 Print this help message\n");
 }
@@ -64,7 +66,7 @@ int main(int argc, char* argv[])
 	int	c		= 0;
 	int	rv		= 0;
 	
-	while ((c = getopt(argc, argv, "f:t:o:123h")) != -1)
+	while ((c = getopt(argc, argv, "f:t:o:123vh")) != -1)
 	{
 		switch(c)
 		{
@@ -85,6 +87,9 @@ int main(int argc, char* argv[])
 			break;
 		case '3':
 			out_type = 3;
+			break;
+		case 'v':
+			set_verbose(1);
 			break;
 		case 'h':
 		default:

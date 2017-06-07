@@ -3,7 +3,10 @@ LDFLAGS=`ldns-config --libs`
 
 LDNS_MERGEZONE_OBJECTS=\
 main.o \
-merge.o
+merge.o \
+verify.o \
+verbose.o \
+dnssec_ht.o
 
 all: ldns-mergezone
 
