@@ -197,3 +197,30 @@ int ldns_mergezone_verify_validate_dnskey_sig(ldns_rr_list* dnskey_set, ldns_rr_
 	return all_rrsigs_valid ? 0 : 1;
 }
 
+/* Verify if the specified DNSKEY set contains keys with the specified algorithm */
+int ldns_mergezone_verify_dnskey_set_contains_algo(ldns_rr_list* dnskey_set, int algo)
+{
+	assert(dnskey_set != NULL);
+
+	size_t		i	= 0;
+	ldns_rr*	dnskey	= NULL;
+
+	for (i = 0; i < ldns_rr_list_rr_count(dnskey_set); i++)
+	{
+		dnskey = ldns_rr_list_rr(dnskey_set, i);
+
+		assert(ldns_rr_rd_count(dnskey) == 4);
+
+		if (ldns_rdf2native_int8(ldns_rr_rdf(dnskey, 2)) == algo)
+		{
+			VERBOSE("DNSKEY RRset contains a key with algorithm %d\n", algo);
+
+			return 0;
+		}
+	}
+
+	VERBOSE("DNSKEY RRset does not contain a key with algorithm %d\n", algo);
+
+	return 1;
+}
+

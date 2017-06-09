@@ -46,5 +46,8 @@ int ldns_mergezone_verify_and_fetch_single_algo(ldns_zone* zone_to_verify, int* 
 /* Validate signature over the specified DNSKEY set with the specified RRSIG(s) */
 int ldns_mergezone_verify_validate_dnskey_sig(ldns_rr_list* dnskey_set, ldns_rr_list* dnskey_rrsigs);
 
+/* Verify if the specified DNSKEY set contains keys with the specified algorithm */
+int ldns_mergezone_verify_dnskey_set_contains_algo(ldns_rr_list* dnskey_set, int algo);
+
 #endif /* !_LDNS_MERGEZONE_VERIFY_H */
 

@@ -46,6 +46,7 @@ int ldns_mergezone_merge(const char* from_zone, const char* to_zone, const char*
 	FILE*		to_fp		= fopen(to_zone, "r");
 	int		from_algo	= 0;
 	int		to_algo		= 0;
+	ldns_rr_list*	output_dnskeys	= NULL;
 	dnssec_ht	from_ht;
 	dnssec_ht	to_ht;
 
@@ -155,6 +156,192 @@ int ldns_mergezone_merge(const char* from_zone, const char* to_zone, const char*
 		fprintf(stderr, "DNSKEY RRset in \"To\" zone cannot be validated\n");
 
 		return 1;
+	}
+
+	/* Validate correct content of DNSKEY RRsets based on the desired output zone */
+	switch(out_type)
+	{
+	case 1:
+		/* 
+		 * From zone must contain DNSKEYs with the 'from' algorithm,
+		 * but not with the 'to' algorithm.
+		 *
+		 * To zone must contain DNSKEYs with the 'from' algorithm,
+		 * and with the 'to' algorithm.
+		 */
+		{
+			VERBOSE("Verifying the \"From\" zone only contains DNSKEYs with the \"from\" algorithm\n");
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&from_ht), from_algo) != 0)
+			{
+				fprintf(stderr, "\"From\" zone does not contain DNSKEYs with the \"from\" algorithm\n");
+
+				return 1;
+			}
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&from_ht), to_algo) == 0)
+			{
+				fprintf(stderr, "\"From\" zone contains DNSKEYs with the \"to\" algorithm\n");
+
+				return 1;
+			}
+
+			VERBOSE("Verification of \"From\" DNSKEY RRset successful\n");
+
+			VERBOSE("Verifying the \"To\" zone contains DNSKEYs for both the \"from\" and the \"to\" algorithm\n");
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&to_ht), from_algo) != 0)
+			{
+				fprintf(stderr, "\"To\" zone does not contain DNSKEYs with the \"from\" algorithm\n");
+
+				return 1;
+			}
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&to_ht), to_algo) != 0)
+			{
+				fprintf(stderr, "\"To\" zone does not contain DNSKEYs with the \"to\" algorithm\n");
+
+				return 1;
+			}
+
+			VERBOSE("Verification of \"To\" DNSKEY RRset successful\n");
+
+			output_dnskeys = ldns_mergezone_get_dnskeys(&from_ht);
+
+			VERBOSE("Verifying that the output DNSKEY RRset validates against the RRSIG(s) from the \"From\" zone\n");
+
+			if (ldns_mergezone_verify_validate_dnskey_sig(output_dnskeys, ldns_mergezone_get_dnskey_rrsigs(&from_ht)) != 0)
+			{
+				fprintf(stderr, "Output DNSKEY RRset RRSIG(s) validation failed\n");
+
+				return 1;
+			}
+		}
+		break;
+	case 2:
+		/* 
+		 * From zone must contain DNSKEYs with the 'from' algorithm,
+		 * and with the 'to' algorithm.
+		 *
+		 * To zone must contain DNSKEYs with the 'from' algorithm,
+		 * and with the 'to' algorithm.
+		 */
+		{
+			VERBOSE("Verifying the \"From\" zone contains DNSKEYs with both the \"from\" and the \"to\" algorithm\n");
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&from_ht), from_algo) != 0)
+			{
+				fprintf(stderr, "\"From\" zone does not contain DNSKEYs with the \"from\" algorithm\n");
+
+				return 1;
+			}
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&from_ht), to_algo) != 0)
+			{
+				fprintf(stderr, "\"From\" zone does not contain DNSKEYs with the \"to\" algorithm\n");
+
+				return 1;
+			}
+
+			VERBOSE("Verification of \"From\" DNSKEY RRset successful\n");
+
+			VERBOSE("Verifying the \"To\" zone contains DNSKEYs for both the \"from\" and the \"to\" algorithm\n");
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&to_ht), from_algo) != 0)
+			{
+				fprintf(stderr, "\"To\" zone does not contain DNSKEYs with the \"from\" algorithm\n");
+
+				return 1;
+			}
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&to_ht), to_algo) != 0)
+			{
+				fprintf(stderr, "\"To\" zone does not contain DNSKEYs with the \"to\" algorithm\n");
+
+				return 1;
+			}
+
+			VERBOSE("Verification of \"To\" DNSKEY RRset successful\n");
+
+			output_dnskeys = ldns_mergezone_get_dnskeys(&to_ht);
+
+			VERBOSE("Verifying that the output DNSKEY RRset validates against the RRSIG(s) from the \"From\" and the \"To\" zone\n");
+
+			if (ldns_mergezone_verify_validate_dnskey_sig(output_dnskeys, ldns_mergezone_get_dnskey_rrsigs(&from_ht)) != 0)
+			{
+				fprintf(stderr, "Output DNSKEY RRset RRSIG(s) validation failed\n");
+
+				return 1;
+			}
+
+			if (ldns_mergezone_verify_validate_dnskey_sig(output_dnskeys, ldns_mergezone_get_dnskey_rrsigs(&to_ht)) != 0)
+			{
+				fprintf(stderr, "Output DNSKEY RRset RRSIG(s) validation failed\n");
+
+				return 1;
+			}
+		}
+		break;
+	case 3:
+		/* 
+		 * From zone must contain DNSKEYs with the 'from' algorithm,
+		 * and with the 'to' algorithm.
+		 *
+		 * To zone must not contain DNSKEYs with the 'from' algorithm,
+		 * but only with the 'to' algorithm.
+		 */
+		{
+			VERBOSE("Verifying the \"From\" zone contains DNSKEYs with both the \"from\" and the \"to\" algorithm\n");
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&from_ht), from_algo) != 0)
+			{
+				fprintf(stderr, "\"From\" zone does not contain DNSKEYs with the \"from\" algorithm\n");
+
+				return 1;
+			}
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&from_ht), to_algo) != 0)
+			{
+				fprintf(stderr, "\"From\" zone does not contain DNSKEYs with the \"to\" algorithm\n");
+
+				return 1;
+			}
+
+			VERBOSE("Verification of \"From\" DNSKEY RRset successful\n");
+
+			VERBOSE("Verifying the \"To\" zone only contains DNSKEYs for the \"to\" algorithm\n");
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&to_ht), from_algo) == 0)
+			{
+				fprintf(stderr, "\"To\" zone contains DNSKEYs with the \"from\" algorithm\n");
+
+				return 1;
+			}
+
+			if (ldns_mergezone_verify_dnskey_set_contains_algo(ldns_mergezone_get_dnskeys(&to_ht), to_algo) != 0)
+			{
+				fprintf(stderr, "\"To\" zone does not contain DNSKEYs with the \"to\" algorithm\n");
+
+				return 1;
+			}
+
+			VERBOSE("Verification of \"To\" DNSKEY RRset successful\n");
+			
+			output_dnskeys = ldns_mergezone_get_dnskeys(&to_ht);
+
+			VERBOSE("Verifying that the output DNSKEY RRset validates against the RRSIG(s) from the \"To\" zone\n");
+
+			if (ldns_mergezone_verify_validate_dnskey_sig(output_dnskeys, ldns_mergezone_get_dnskey_rrsigs(&to_ht)) != 0)
+			{
+				fprintf(stderr, "Output DNSKEY RRset RRSIG(s) validation failed\n");
+
+				return 1;
+			}
+		}
+		break;
+	default:
+		assert(0 == 1);	/* We should never get here, but hey... */
+		break;
 	}
 
 	/* Clean up */
