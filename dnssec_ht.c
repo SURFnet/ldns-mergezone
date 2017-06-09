@@ -112,13 +112,27 @@ int ldns_mergezone_populate_dnssec_ht(ldns_zone* zone, dnssec_ht* ht)
 /* Find matching RRSIG */
 int ldns_mergezone_find_rrsig_match(dnssec_ht* ht, ldns_rr* find, ldns_rr** found)
 {
+	assert(ht != NULL);
+	assert(find != NULL);
+	assert(found != NULL);
+
 	return 0;
 }
 
 /* Get DNSKEYs */
 ldns_rr_list* ldns_mergezone_get_dnskeys(dnssec_ht* ht)
 {
-	return 0;
+	assert(ht != NULL);
+
+	return ht->dnskeys;
+}
+
+/* Get DNSKEY RRSIGs */
+ldns_rr_list* ldns_mergezone_get_dnskey_rrsigs(dnssec_ht* ht)
+{
+	assert(ht != NULL);
+
+	return ht->dnskey_rrsigs;
 }
 
 /* Clean up */

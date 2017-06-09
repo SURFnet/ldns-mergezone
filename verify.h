@@ -43,5 +43,8 @@ int ldns_mergezone_verify_soa_and_origin(ldns_zone* left, ldns_zone* right);
 /* Verify and retrieve the single signing algorithm in the zone */
 int ldns_mergezone_verify_and_fetch_single_algo(ldns_zone* zone_to_verify, int* algo_id);
 
+/* Validate signature over the specified DNSKEY set with the specified RRSIG(s) */
+int ldns_mergezone_verify_validate_dnskey_sig(ldns_rr_list* dnskey_set, ldns_rr_list* dnskey_rrsigs);
+
 #endif /* !_LDNS_MERGEZONE_VERIFY_H */
 

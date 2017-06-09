@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <ldns/ldns.h>
+#include <time.h>
 #include <assert.h>
 #include "verify.h"
 #include "verbose.h"
@@ -152,5 +153,47 @@ int ldns_mergezone_verify_and_fetch_single_algo(ldns_zone* zone_to_verify, int* 
 	*algo_id = single_algo;
 
 	return 0;
+}
+
+/* Validate signature over the specified DNSKEY set with the specified RRSIG(s) */
+int ldns_mergezone_verify_validate_dnskey_sig(ldns_rr_list* dnskey_set, ldns_rr_list* dnskey_rrsigs)
+{
+	assert(dnskey_set != NULL);
+	assert(dnskey_rrsigs != NULL);
+
+	ldns_rr*	rrsig			= NULL;
+	size_t		i			= 0;
+	int 		all_rrsigs_valid	= 1;
+	ldns_rr_list*	valid_keys		= ldns_rr_list_new();
+
+	for (i = 0; i < ldns_rr_list_rr_count(dnskey_rrsigs); i++)
+	{
+		rrsig = ldns_rr_list_rr(dnskey_rrsigs, i);
+
+		/* 2017-06-09, rijswijk, FIXME:
+		 *
+		 * Note: this call to ldns_verify_rrsig_keylist leaks memory, because LDNS
+		 *       appears to fail to clean up some memory that gets allocated by calls
+		 *       to the OpenSSL EVP API.
+		 */
+		if (ldns_verify_rrsig_keylist(dnskey_set, rrsig, dnskey_set, valid_keys) != LDNS_STATUS_OK)
+		{
+			fprintf(stderr, "RRSIG validation failed\n");
+
+			all_rrsigs_valid = 0;
+
+			break;
+		}
+	}
+
+	/* Clean up */
+	ldns_rr_list_free(valid_keys);
+
+	if (all_rrsigs_valid)
+	{
+		VERBOSE("Validation of provided signatures over provided DNSKEY RRset succeeded\n");
+	}
+
+	return all_rrsigs_valid ? 0 : 1;
 }
 

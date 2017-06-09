@@ -138,6 +138,25 @@ int ldns_mergezone_merge(const char* from_zone, const char* to_zone, const char*
 		return 1;
 	}
 
+	/* Validate DNSKEY RRsets in input zones */
+	VERBOSE("Validating DNSKEY RRset signatures in \"From\" zone\n");
+
+	if (ldns_mergezone_verify_validate_dnskey_sig(ldns_mergezone_get_dnskeys(&from_ht), ldns_mergezone_get_dnskey_rrsigs(&from_ht)) != 0)
+	{
+		fprintf(stderr, "DNSKEY RRset in \"From\" zone cannot be validated\n");
+
+		return 1;
+	}
+
+	VERBOSE("Validating DNSKEY RRset signatures in \"To\" zone\n");
+
+	if (ldns_mergezone_verify_validate_dnskey_sig(ldns_mergezone_get_dnskeys(&to_ht), ldns_mergezone_get_dnskey_rrsigs(&to_ht)) != 0)
+	{
+		fprintf(stderr, "DNSKEY RRset in \"To\" zone cannot be validated\n");
+
+		return 1;
+	}
+
 	/* Clean up */
 	ldns_mergezone_dnssec_ht_free(&from_ht);
 	ldns_mergezone_dnssec_ht_free(&to_ht);

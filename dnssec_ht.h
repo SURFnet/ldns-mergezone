@@ -64,6 +64,9 @@ int ldns_mergezone_find_rrsig_match(dnssec_ht* ht, ldns_rr* find, ldns_rr** foun
 /* Get DNSKEYs */
 ldns_rr_list* ldns_mergezone_get_dnskeys(dnssec_ht* ht);
 
+/* Get DNSKEY RRSIGs */
+ldns_rr_list* ldns_mergezone_get_dnskey_rrsigs(dnssec_ht* ht);
+
 /* Clean up */
 void ldns_mergezone_dnssec_ht_free(dnssec_ht* ht);
 
