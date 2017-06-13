@@ -33,6 +33,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ldns/ldns.h>
+#include <errno.h>
 #include "merge.h"
 #include "verify.h"
 #include "verbose.h"
@@ -40,13 +41,18 @@
 
 int ldns_mergezone_merge(const char* from_zone, const char* to_zone, const char* out_zone, const int out_type)
 {
-	ldns_zone*	from		= NULL;
-	ldns_zone*	to		= NULL;
-	FILE*		from_fp		= fopen(from_zone, "r");
-	FILE*		to_fp		= fopen(to_zone, "r");
-	int		from_algo	= 0;
-	int		to_algo		= 0;
-	ldns_rr_list*	output_dnskeys	= NULL;
+	ldns_zone*	from			= NULL;
+	ldns_zone*	to			= NULL;
+	FILE*		from_fp			= fopen(from_zone, "r");
+	FILE*		to_fp			= fopen(to_zone, "r");
+	FILE*		out_fp			= NULL;
+	int		from_algo		= 0;
+	int		to_algo			= 0;
+	ldns_rr_list*	output_dnskeys		= NULL;
+	int		wrote_dnskeys_and_sigs	= 0;
+	size_t		i			= 0;
+	size_t		out_recs		= 0;
+	ldns_rr_list*	zone_rrs		= NULL;
 	dnssec_ht	from_ht;
 	dnssec_ht	to_ht;
 
@@ -87,8 +93,8 @@ int ldns_mergezone_merge(const char* from_zone, const char* to_zone, const char*
 	fclose(to_fp);
 
 	/* Sort zones */
-	ldns_zone_sort(from);
-	ldns_zone_sort(to);
+	/*ldns_zone_sort(from);
+	ldns_zone_sort(to);*/
 
 	/* Perform pre-merge verification of input zones */
 	if (ldns_mergezone_verify_soa_and_origin(from, to) != 0)
@@ -343,6 +349,120 @@ int ldns_mergezone_merge(const char* from_zone, const char* to_zone, const char*
 		assert(0 == 1);	/* We should never get here, but hey... */
 		break;
 	}
+
+	/* Write the output zone */
+	out_fp = fopen(out_zone, "w");
+
+	if (out_fp == NULL)
+	{
+		fprintf(stderr, "Failed to open %s for writing\n", out_zone);
+
+		return EPERM;
+	}
+
+	/* Output the SOA first */
+	ldns_rr_print(out_fp, ldns_zone_soa(from));
+	out_recs++;
+
+	zone_rrs = ldns_zone_rrs(from);
+
+	for (i = 0; i < ldns_rr_list_rr_count(zone_rrs); i++)
+	{
+		ldns_rr*	rr		= ldns_rr_list_rr(zone_rrs, i);
+		ldns_rr*	merged_rrsig	= NULL;
+		int		is_dnskey_rec	= 0;
+
+		if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
+		{
+			assert(ldns_rr_rd_count(rr) == 9);
+
+			/* Check if the type covered by the RRSIG is DNSKEY */
+			uint16_t type_covered = ldns_rdf2native_int16(ldns_rr_rdf(rr, 0));
+
+			if (type_covered == LDNS_RR_TYPE_DNSKEY)
+			{
+				/* Do not output this signature directly */
+				is_dnskey_rec = 1;
+			}
+			else
+			{
+				/* Find the accompanying signature in the other zone */
+				if (ldns_mergezone_find_rrsig_match(&to_ht, rr, &merged_rrsig) != 0)
+				{
+					fprintf(stderr, "Failed to find matching signature, giving up!\n");
+
+					fclose(out_fp);
+
+					unlink(out_zone);
+
+					return 1;
+				}
+
+				/* Output both signatures */
+				ldns_rr_print(out_fp, rr);
+				ldns_rr_print(out_fp, merged_rrsig);
+
+				out_recs += 2;
+			}
+		}
+		else if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_DNSKEY)
+		{
+			/* Do not output this record directly */
+		}
+		else
+		{
+			/* Output unmodified resource record */
+			ldns_rr_print(out_fp, rr);
+
+			out_recs++;
+		}
+
+		if (is_dnskey_rec && !wrote_dnskeys_and_sigs)
+		{
+			/* Write DNSKEY RRset and accompanying signatures */
+			size_t	j	= 0;
+
+			/* Output DNSKEYs first */
+			for (j = 0; j < ldns_rr_list_rr_count(output_dnskeys); j++)
+			{
+				ldns_rr_print(out_fp, ldns_rr_list_rr(output_dnskeys, j));
+
+				out_recs++;
+			}
+
+			/* Output DNSKEY RRSIG records */
+			for (j = 0; j < ldns_rr_list_rr_count(ldns_mergezone_get_dnskey_rrsigs(&from_ht)); j++)
+			{
+				ldns_rr_print(out_fp, ldns_rr_list_rr(ldns_mergezone_get_dnskey_rrsigs(&from_ht), j));
+
+				out_recs++;
+			}
+
+			for (j = 0; j < ldns_rr_list_rr_count(ldns_mergezone_get_dnskey_rrsigs(&to_ht)); j++)
+			{
+				ldns_rr_print(out_fp, ldns_rr_list_rr(ldns_mergezone_get_dnskey_rrsigs(&to_ht), j));
+
+				out_recs++;
+			}
+
+			wrote_dnskeys_and_sigs = 1;
+		}
+	}
+
+	if (!wrote_dnskeys_and_sigs)
+	{
+		fprintf(stderr, "An error occurred while outputting the merged zone\n");
+
+		fclose(out_fp);
+
+		unlink(out_zone);
+
+		return 1;
+	}
+
+	VERBOSE("Merge finished, wrote %zd records to %s\n", out_recs, out_zone);
+
+	fclose(out_fp);
 
 	/* Clean up */
 	ldns_mergezone_dnssec_ht_free(&from_ht);

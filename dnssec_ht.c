@@ -115,6 +115,32 @@ int ldns_mergezone_find_rrsig_match(dnssec_ht* ht, ldns_rr* find, ldns_rr** foun
 	assert(ht != NULL);
 	assert(find != NULL);
 	assert(found != NULL);
+	assert(ldns_rr_get_type(find) == LDNS_RR_TYPE_RRSIG);
+	assert(ldns_rr_rd_count(find) == 9);
+
+	char		type_and_owner[1024]	= { 0 };
+	char*		owner_name		= ldns_rdf2str(ldns_rr_owner(find));
+	uint16_t	type_covered		= ldns_rdf2native_int16(ldns_rr_rdf(find, 0));
+	rrsig_ht_ent*	htent			= NULL;
+
+	snprintf(type_and_owner, 1024, "%u_%s", type_covered, owner_name);
+
+	free(owner_name);
+
+	HASH_FIND_STR(ht->rrsig_ht, type_and_owner, htent);
+
+	if (htent == NULL)
+	{
+		fprintf(stderr, "Failed to find matching RRSIG for %s\n", type_and_owner);
+
+		*found = NULL;
+
+		return 1;
+	}
+
+	*found = htent->rr;
+
+	VERBOSE("Found matching RRSIG for %s\n", type_and_owner);
 
 	return 0;
 }

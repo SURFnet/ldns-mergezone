@@ -170,12 +170,6 @@ int ldns_mergezone_verify_validate_dnskey_sig(ldns_rr_list* dnskey_set, ldns_rr_
 	{
 		rrsig = ldns_rr_list_rr(dnskey_rrsigs, i);
 
-		/* 2017-06-09, rijswijk, FIXME:
-		 *
-		 * Note: this call to ldns_verify_rrsig_keylist leaks memory, because LDNS
-		 *       appears to fail to clean up some memory that gets allocated by calls
-		 *       to the OpenSSL EVP API.
-		 */
 		if (ldns_verify_rrsig_keylist(dnskey_set, rrsig, dnskey_set, valid_keys) != LDNS_STATUS_OK)
 		{
 			fprintf(stderr, "RRSIG validation failed\n");

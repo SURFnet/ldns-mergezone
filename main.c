@@ -33,6 +33,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <openssl/crypto.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <openssl/engine.h>
+#include <openssl/conf.h>
 #include "merge.h"
 #include "verbose.h"
 
@@ -55,6 +60,17 @@ void usage(void)
 	printf("\t-v             Be verbose\n");
 	printf("\n");
 	printf("\t-h                 Print this help message\n");
+}
+
+void cleanup_openssl(void)
+{
+	FIPS_mode_set(0);
+	ENGINE_cleanup();
+	CONF_modules_unload(1);
+	EVP_cleanup();
+	CRYPTO_cleanup_all_ex_data();
+	ERR_remove_state(0);
+	ERR_free_strings();
 }
 
 int main(int argc, char* argv[])
@@ -132,6 +148,8 @@ int main(int argc, char* argv[])
 	{
 		fprintf(stderr, "Zone merge failed, exiting with error state\n");
 	}
+
+	cleanup_openssl();
 
 	free(from_zone);
 	free(to_zone);

@@ -24,6 +24,7 @@ Building `ldns-mergezone`, requires the following dependencies to be installed:
  - POSIX-compliant build system
  - make
  - libldns >= 1.6.17
+ - OpenSSL >= 1.0.1
 
 ## 3. BUILDING
 

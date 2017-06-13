@@ -1,5 +1,5 @@
 CFLAGS=-g -Wall -Werror `ldns-config --cflags`
-LDFLAGS=`ldns-config --libs` 
+LDFLAGS=`ldns-config --libs` -Lcrypto
 
 LDNS_MERGEZONE_OBJECTS=\
 main.o \
